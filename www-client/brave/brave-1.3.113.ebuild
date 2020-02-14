@@ -5,7 +5,7 @@ EAPI=7
 
 PYTHON_COMPAT=( python2_7 )
 
-inherit git-r3 python-any-r1 flag-o-matic desktop xdg-utils
+inherit check-reqs git-r3 python-any-r1 flag-o-matic desktop xdg-utils
 
 DESCRIPTION="Brave is a free and open-source web browser"
 HOMEPAGE="https://brave.com/"
@@ -16,28 +16,98 @@ EGIT_SUBMODULES=()
 LICENSE="MPL-2.0"
 SLOT="0"
 KEYWORDS="amd64"
-IUSE="+closure-compile cups gnome-keyring kerberos pulseaudio +hangouts +tcmalloc +widevine -system-icu"
+IUSE="+closure-compile cups gnome-keyring kerberos pulseaudio +hangouts +tcmalloc +widevine -system-icu selinux -system-libvpx -system-ffmpeg"
 
 ## ISSUES.
 # 
-# * right now the ebuild does not check for sufficient disk and storage space.
 # * there is a way to generate the desktop file directly from source.
-# * dependencies are very poorly taken care of right now.
 # * the older versions of sandbox segfault. we need >= 2.17.
 # * cross-compilation probably does not work.
 
 # FEATURES="keepwork" can be used to avoid re-downloading the complete source code,
 # which as of the time of writing this is around 20 GB in total.
 
-DEPEND="
-	system-icu? ( dev-libs/icu )
-	dev-libs/libxml2
+COMMON_DEPEND="
+	>=app-accessibility/at-spi2-atk-2.26:2
+	app-arch/bzip2:=
+	cups? ( >=net-print/cups-1.3.11:= )
+	>=dev-libs/atk-2.26
+	dev-libs/expat:=
+	dev-libs/glib:2
+	system-icu? ( >=dev-libs/icu-65:= )
+	>=dev-libs/libxml2-2.9.4-r3:=[icu]
+	dev-libs/libxslt:=
+	dev-libs/nspr:=
+	>=dev-libs/nss-3.26:=
+	>=dev-libs/re2-0.2019.08.01:=
+	gnome-keyring? ( >=gnome-base/libgnome-keyring-3.12:= )
+	>=media-libs/alsa-lib-1.0.19:=
+	media-libs/fontconfig:=
+	media-libs/freetype:=
+	>=media-libs/harfbuzz-2.4.0:0=[icu(-)]
+	media-libs/libjpeg-turbo:=
+	media-libs/libpng:=
+	system-libvpx? ( media-libs/libvpx:=[postproc,svc] )
+	>=media-libs/openh264-1.6.0:=
+	pulseaudio? ( media-sound/pulseaudio:= )
+	system-ffmpeg? (
+		>=media-video/ffmpeg-4:=
+		|| (
+			media-video/ffmpeg[-samba]
+			>=net-fs/samba-4.5.10-r1[-debug(-)]
+		)
+		!=net-fs/samba-4.5.12-r0
+		>=media-libs/opus-1.3.1:=
+	)
+	sys-apps/dbus:=
+	sys-apps/pciutils:=
+	virtual/udev
+	x11-libs/cairo:=
+	x11-libs/gdk-pixbuf:2
+	x11-libs/gtk+:3[X]
+	x11-libs/libX11:=
+	x11-libs/libXcomposite:=
+	x11-libs/libXcursor:=
+	x11-libs/libXdamage:=
+	x11-libs/libXext:=
+	x11-libs/libXfixes:=
+	>=x11-libs/libXi-1.6.0:=
+	x11-libs/libXrandr:=
+	x11-libs/libXrender:=
+	x11-libs/libXScrnSaver:=
+	x11-libs/libXtst:=
+	x11-libs/pango:=
+	app-arch/snappy:=
+	media-libs/flac:=
+	>=media-libs/libwebp-0.4.0:=
+	sys-libs/zlib:=[minizip]
+	kerberos? ( virtual/krb5 )
 "
-RDEPEND="${DEPEND}"
+
+DEPEND="${COMMON_DEPEND}"
+RDEPEND="${COMMON_DEPEND}
+	!<www-plugins/chrome-binary-plugins-57
+	x11-misc/xdg-utils
+	virtual/opengl
+	virtual/ttf-fonts
+	selinux? ( sec-policy/selinux-chromium )
+	tcmalloc? ( !<x11-drivers/nvidia-drivers-331.20 )
+"
 BDEPEND="
-	${PYTHON_DEPS}
-	=sys-apps/sandbox-2.17
-	net-libs/nodejs
+${PYTHON_DEPS}
+	>=sys-apps/sandbox-2.17
+	>=app-arch/gzip-1.7
+	dev-lang/perl
+	dev-util/gn
+	dev-vcs/git
+	>=dev-util/gperf-3.0.3
+	>=dev-util/ninja-1.7.2
+	>=net-libs/nodejs-7.6.0[inspector]
+	sys-apps/hwids[usb(+)]
+	>=sys-devel/bison-2.4.3
+	sys-devel/flex
+	closure-compile? ( virtual/jre )
+	virtual/pkgconfig
 "
 
 PATCHES=(
@@ -59,6 +129,21 @@ PATCHES=(
 	"${FILESDIR}/brave-content_settings-redirect.patch"
 	"${FILESDIR}/brave-misc.patch"
 )
+
+pre_build_checks() {
+	# check build requirements.
+	CHECKREQS_MEMORY="8G"
+	CHECKREQS_DISK_BUILD="100G"
+	check-reqs_pkg_setup
+}
+
+pkg_pretend() {
+	pre_build_checks
+}
+
+pkg_setup() {
+	pre_build_checks
+}
 
 src_unpack() {
 	git-r3_src_unpack
@@ -111,6 +196,9 @@ src_configure() {
 	if use system-icu; then
 		myconf_gn+=" icu_use_data_file: false,"
 	fi
+
+	# XXX work in progress
+	# myconf_gn+=" use_jumbo_build: true,"
 
 	# prevent the linker from running out of memory.
 	myconf_gn+=" blink_symbol_level: 0,"

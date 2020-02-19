@@ -155,6 +155,7 @@ src_prepare() {
 
 	# yarn is used to fetch the brave base portion of the source.
 	# note that the download is very big, around 19 GB.
+	rm -f package-lock.json
 	yarn install
 	yarn run init
 

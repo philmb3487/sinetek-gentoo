@@ -10,7 +10,7 @@ inherit check-reqs git-r3 python-any-r1 flag-o-matic desktop xdg-utils
 DESCRIPTION="Brave is a free and open-source web browser"
 HOMEPAGE="https://brave.com/"
 EGIT_REPO_URI="https://github.com/brave/brave-browser"
-EGIT_COMMIT="v1.3.113"
+EGIT_COMMIT="v1.3.114"
 EGIT_SUBMODULES=()
 
 LICENSE="MPL-2.0"
@@ -108,6 +108,7 @@ ${PYTHON_DEPS}
 	sys-devel/flex
 	closure-compile? ( virtual/jre )
 	virtual/pkgconfig
+	sys-apps/yarn
 "
 
 PATCHES=(
@@ -152,11 +153,10 @@ src_unpack() {
 src_prepare() {
 	python_setup
 
-	# npm is used to fetch the brave base portion of the source.
+	# yarn is used to fetch the brave base portion of the source.
 	# note that the download is very big, around 19 GB.
-	npm install || die
-	npm run init || die
-	#npm run sync -- --all --run_hooks --run_sync || npm run init || die
+	yarn install
+	yarn run init
 
 	# ... and the patches
 	sed -i -e "/\/\/chrome\/installer\/linux/d" src/brave/BUILD.gn || die
@@ -246,7 +246,7 @@ src_compile() {
 	# final link uses lots of file descriptors.
 	ulimit -n 4096
 
-	npm run build Release || die
+	yarn run build Release || die
 }
 
 src_install() {

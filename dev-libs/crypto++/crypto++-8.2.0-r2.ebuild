@@ -35,7 +35,9 @@ pkg_setup() {
 src_prepare() {
 	default
 
-	sed -i -e "|LDCONF|d" GNUmakefile || die
+	if use elibc_musl; then
+		sed -i -e "|LDCONF|d" GNUmakefile || die
+	fi
 
 	use asm || config_add CRYPTOPP_DISABLE_ASM
 	use cpu_flags_x86_aes || config_add CRYPTOPP_DISABLE_AESNI

@@ -27,7 +27,7 @@ src_prepare() {
 		"${FILESDIR}"/libtirpc-1.2.5-avoid-multiple-definition.patch
 	)
 	default
-	sed -i -e "|bits/endian.h|d" src/xdr_float.c
+	sed -i -e "/bits\/endian.h/d" src/xdr_float.c || die
 	eautoreconf
 }
 

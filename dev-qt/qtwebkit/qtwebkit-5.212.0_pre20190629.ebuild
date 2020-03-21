@@ -121,6 +121,7 @@ src_configure() {
 		-DENABLE_WEBKIT2=$(usex qml)
 		$(cmake_use_find_package webp WebP)
 		-DENABLE_X11_TARGET=$(usex X)
+		-DUSE_LD_GOLD=OFF
 	)
 
 	if has_version "virtual/rubygems[ruby_targets_ruby27]"; then

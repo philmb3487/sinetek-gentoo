@@ -20,6 +20,10 @@ RDEPEND="${DEPEND}"
 
 S="${WORKDIR}/${PN}"
 
+PATCHES=(
+	"${FILESDIR}/01-limits.patch"
+)
+
 src_prepare() {
 	if use java ; then
 		java-pkg-opt-2_src_prepare
@@ -32,7 +36,12 @@ src_prepare() {
 }
 
 src_configure() {
-	append-cxxflags -std=c++11
+	# for musl.
+	if use elibc_musl; then
+		append-cppflags -DPATH_MAX=4096
+	fi
+
+	append-cxxflags -std=c++11 -DPATH_MAX=4096
 	tc-export CXX
 	default
 }

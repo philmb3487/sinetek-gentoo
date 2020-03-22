@@ -36,12 +36,7 @@ src_prepare() {
 }
 
 src_configure() {
-	# for musl.
-	if use elibc_musl; then
-		append-cppflags -DPATH_MAX=4096
-	fi
-
-	append-cxxflags -std=c++11 -DPATH_MAX=4096
+	append-cxxflags -std=c++11
 	tc-export CXX
 	default
 }

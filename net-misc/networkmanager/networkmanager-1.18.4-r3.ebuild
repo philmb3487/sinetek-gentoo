@@ -239,10 +239,6 @@ multilib_src_configure() {
 		ln -s "${S}/man" man || die
 	fi
 
-	if use elibc_musl; then
-		sed -i -e "s|common_flags = \[\]|common_flags = \['-D__UAPI_DEF_ETHHDR=0'\]|"
-	fi
-
 	ECONF_SOURCE=${S} runstatedir="/run" gnome2_src_configure "${myconf[@]}"
 }
 

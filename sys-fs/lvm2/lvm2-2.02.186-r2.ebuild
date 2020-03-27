@@ -1,4 +1,4 @@
-# Copyright 1999-2020 Gentoo Authors
+# Copyright 1999-2019 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
@@ -53,27 +53,27 @@ S="${WORKDIR}/${PN/lvm/LVM}.${PV}"
 
 PATCHES=(
 	# Gentoo specific modification(s):
-	"${FILESDIR}"/${PN}-2.03.06-example.conf.in.patch
+	"${FILESDIR}"/${PN}-2.02.178-example.conf.in.patch
 
 	# For upstream -- review and forward:
-	#"${FILESDIR}"/${PN}-2.02.63-always-make-static-libdm.patch # FIXME: breaks libdm/dm-tools build
+	"${FILESDIR}"/${PN}-2.02.63-always-make-static-libdm.patch
 	"${FILESDIR}"/${PN}-2.02.56-lvm2create_initrd.patch
 	"${FILESDIR}"/${PN}-2.02.67-createinitrd.patch #301331
 	"${FILESDIR}"/${PN}-2.02.99-locale-muck.patch #330373
-	#"${FILESDIR}"/${PN}-2.02.178-asneeded.patch # -Wl,--as-needed
-	"${FILESDIR}"/${PN}-2.03.05-dynamic-static-ldflags.patch #332905
+	"${FILESDIR}"/${PN}-2.02.178-asneeded.patch # -Wl,--as-needed
+	"${FILESDIR}"/${PN}-2.02.178-dynamic-static-ldflags.patch #332905
 	"${FILESDIR}"/${PN}-2.02.178-static-pkgconfig-libs.patch #370217, #439414 + blkid
-	"${FILESDIR}"/${PN}-2.03.05-pthread-pkgconfig.patch #492450
+	"${FILESDIR}"/${PN}-2.02.176-pthread-pkgconfig.patch #492450
 	"${FILESDIR}"/${PN}-2.02.171-static-libm.patch #617756
 	"${FILESDIR}"/${PN}-2.02.166-HPPA-no-O_DIRECT.patch #657446
 	#"${FILESDIR}"/${PN}-2.02.145-mkdev.patch #580062 # Merged upstream
-	"${FILESDIR}"/${PN}-2.03.05-dmeventd-no-idle-exit.patch
+	"${FILESDIR}"/${PN}-2.02.184-dmeventd-no-idle-exit.patch
 	#"${FILESDIR}"/${PN}-2.02.184-allow-reading-metadata-with-invalid-creation_time.patch #682380 # merged upstream
 	"${FILESDIR}"/${PN}-2.02.184-mksh_build.patch #686652
+	"${FILESDIR}"/${PN}-2.02.186-udev_remove_unsupported_option.patch #700160
 	"${FILESDIR}"/fix-stdio-usage.patch
 	"${FILESDIR}"/mlockall-default-config.patch
 	"${FILESDIR}"/portability.patch
-
 )
 
 pkg_setup() {
@@ -110,6 +110,13 @@ src_prepare() {
 
 	sed -i -e '/FLAG/s:-O2::' configure{.ac,} || die #480212
 
+	if use udev && ! use device-mapper-only; then
+		sed -i -e '/use_lvmetad =/s:0:1:' conf/example.conf.in || die #514196
+		elog "Notice that \"use_lvmetad\" setting is enabled with USE=\"udev\" in"
+		elog "/etc/lvm/lvm.conf, which will require restart of udev, lvm, and lvmetad"
+		elog "if it was previously disabled."
+	fi
+
 	sed -i -e "s:/usr/bin/true:$(type -P true):" scripts/blk_availability_systemd_red_hat.service.in || die #517514
 
 	# Don't install thin man page when not requested
@@ -131,7 +138,9 @@ src_configure() {
 		$(use_enable !device-mapper-only dmfilemapd)
 		$(use_enable !device-mapper-only dmeventd)
 		$(use_enable !device-mapper-only cmdlib)
+		$(use_enable !device-mapper-only applib)
 		$(use_enable !device-mapper-only fsadm)
+		$(use_enable !device-mapper-only lvmetad)
 		$(use_enable !device-mapper-only lvmpolld)
 		$(usex device-mapper-only --disable-udev-systemd-background-jobs '')
 
@@ -158,6 +167,8 @@ src_configure() {
 		myeconfargs+=( --with-thin=none --with-cache=none )
 	fi
 
+	myeconfargs+=( --with-clvmd=none --with-cluster=none )
+
 	myeconfargs+=(
 		$(use_enable readline)
 		$(use_enable selinux)
@@ -174,7 +185,7 @@ src_configure() {
 		--with-default-pid-dir=/run
 		$(use_enable udev udev_rules)
 		$(use_enable udev udev_sync)
-		$(use_with udev udevdir "${EPREFIX}$(get_udevdir)"/rules.d)
+		$(use_with udev udevdir "$(get_udevdir)"/rules.d)
 		$(use_enable sanlock lvmlockd-sanlock)
 		$(use_enable systemd udev-systemd-background-jobs)
 		$(use_enable systemd notify-dbus)
@@ -215,7 +226,7 @@ src_install() {
 
 	if use !device-mapper-only ; then
 		newinitd "${FILESDIR}"/dmeventd.initd-2.02.184-r2 dmeventd
-		newinitd "${FILESDIR}"/lvm.rc-2.03.05 lvm
+		newinitd "${FILESDIR}"/lvm.rc-2.02.184-r3 lvm
 		newconfd "${FILESDIR}"/lvm.confd-2.02.184-r3 lvm
 		if ! use udev ; then
 			# We keep the variable but remove udev from it.
@@ -225,6 +236,7 @@ src_install() {
 		fi
 
 		newinitd "${FILESDIR}"/lvm-monitoring.initd-2.02.105-r2 lvm-monitoring
+		newinitd "${FILESDIR}"/lvmetad.initd-2.02.116-r3 lvmetad
 		newinitd "${FILESDIR}"/lvmpolld.initd-2.02.183 lvmpolld
 	fi
 
@@ -259,6 +271,9 @@ src_install() {
 pkg_postinst() {
 	ewarn "Make sure the \"lvm\" init script is in the runlevels:"
 	ewarn "# rc-update add lvm boot"
+	ewarn
+	ewarn "Make sure to enable lvmetad in /etc/lvm/lvm.conf if you want"
+	ewarn "to enable lvm autoactivation and metadata caching."
 }
 
 src_test() {
